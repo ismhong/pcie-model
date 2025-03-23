@@ -41,5 +41,9 @@ associated `gnuplot` files).
 
 ## More information
 
+- pcie_bw_gradio_ui.py provides user friendly UI to show PCIe and NIC bandwidth
+  chart with Gradio library. User can use run_docker.sh to launch UI via Docker
+  for bandwidth visualization.
+
 For more information see our SIGCOMM 2018 paper ["Understanding PCIe
 Performance for End Host Networking"](https://dl.acm.org/doi/10.1145/3230543.3230560).
