@@ -99,7 +99,7 @@ def run_pcie_model(pcie_version, lanes, addr_width, ecrc, mps, mrrs, rcb, ethern
         'PCIe Write BW (Gb/s)': wr_bw_values,
         'PCIe Read BW (Gb/s)': rd_bw_values,
         'PCIe Read/Write BW (Gb/s)': rdwr_bw_values,
-        '40G Ethernet (Gb/s)': eth_bw_values,
+        f'{ethernet_speed} (Gb/s)': eth_bw_values,
         'Simple NIC (Gb/s)': simple_nic_bi_values,
         'Modern NIC (kernel driver) (Gb/s)': kernel_nic_bi_values,
         'Modern NIC (DPDK driver) (Gb/s)': pmd_nic_bi_values
@@ -108,73 +108,27 @@ def run_pcie_model(pcie_version, lanes, addr_width, ecrc, mps, mrrs, rcb, ethern
     # Sample the dataframe to show fewer rows
     sampled_df = df.iloc[::50].reset_index(drop=True)
     
-    # Create interactive plot with plotly
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
+    # Generate plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(sizes, rdwr_bw_values, label='Effective PCIe BW', linewidth=2, color='black')
+    plt.plot(sizes, eth_bw_values, label=f'{ethernet_speed}', linewidth=2, color='blue', linestyle='--')
+    plt.plot(sizes, simple_nic_bi_values, label='Simple NIC', linewidth=2, color='green', linestyle=':')
+    plt.plot(sizes, kernel_nic_bi_values, label='Modern NIC (kernel driver)', linewidth=2, color='gray', linestyle='-.')
+    plt.plot(sizes, pmd_nic_bi_values, label='Modern NIC (DPDK driver)', linewidth=2, color='red', linestyle='-')
     
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=sizes, 
-        y=rdwr_bw_values, 
-        mode='lines', 
-        name='Effective PCIe BW',
-        line=dict(color='black', width=2)
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=sizes, 
-        y=eth_bw_values, 
-        mode='lines', 
-        name=f'{ethernet_speed}',
-        line=dict(color='blue', width=2, dash='dash')
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=sizes, 
-        y=simple_nic_bi_values, 
-        mode='lines', 
-        name='Simple NIC',
-        line=dict(color='green', width=2, dash='dot')
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=sizes, 
-        y=kernel_nic_bi_values, 
-        mode='lines', 
-        name='Modern NIC (kernel driver)',
-        line=dict(color='gray', width=2, dash='dashdot')
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=sizes, 
-        y=pmd_nic_bi_values, 
-        mode='lines', 
-        name='Modern NIC (DPDK driver)',
-        line=dict(color='red', width=2)
-    ))
-    
-    fig.update_layout(
-        title='PCIe and Ethernet Bandwidth Comparison',
-        xaxis_title='Transfer Size (Bytes)',
-        yaxis_title='Bandwidth (Gb/s)',
-        hovermode='closest',
-        legend=dict(x=0.02, y=0.98),
-        width=900,
-        height=500,
-        template='plotly_white'
-    )
-    
-    # Add hover information
-    fig.update_traces(
-        hoverinfo='all',
-        hovertemplate='Size: %{x} bytes<br>Bandwidth: %{y:.2f} Gb/s<extra></extra>'
-    )
+    plt.xlabel('Transfer Size (Bytes)')
+    plt.ylabel('Bandwidth (Gb/s)')
+    plt.title('PCIe and Ethernet Bandwidth Comparison')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
     
     # Save plot to temporary file
-    plot_html = fig.to_html(include_plotlyjs='cdn', full_html=False)
+    plot_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
+    plt.savefig(plot_file, dpi=100, bbox_inches='tight')
+    plt.close()
     
-    return "\n".join(config_info), plot_html, sampled_df
+    return "\n".join(config_info), plot_file, sampled_df
 
 # Create Gradio interface
 with gr.Blocks(title="PCIe Bandwidth Visualization Tool") as demo:
@@ -221,7 +175,7 @@ with gr.Blocks(title="PCIe Bandwidth Visualization Tool") as demo:
                 label="Read Completion Boundary (RCB)"
             )
             ethernet_speed = gr.Dropdown(
-                choices=["10GigE", "25GigE", "40GigE", "50GigE", "100GigE", "200GigE", "400GigE"],
+                choices=["400GigE", "200GigE", "100GigE", "50GigE", "40GigE", "25GigE", "10GigE", "GigE"],
                 value="40GigE",
                 label="Ethernet Speed"
             )
@@ -231,7 +185,7 @@ with gr.Blocks(title="PCIe Bandwidth Visualization Tool") as demo:
         with gr.Column(scale=1):
             config_output = gr.Textbox(label="PCIe Configuration", lines=12)
         with gr.Column(scale=2):
-            plot_output = gr.HTML(label="Bandwidth Comparison Plot")
+            plot_output = gr.Image(label="Bandwidth Comparison Plot", type="filepath")
     
     with gr.Row():
         table_output = gr.DataFrame(label="Bandwidth Data (Sampled)")
